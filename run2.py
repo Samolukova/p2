@@ -23,6 +23,10 @@ def find_path(prev, start, goal):
     path.reverse()
     return path
 
+def is_reachable(graph, start, blocked):
+    dist, _ = bfs(graph, start, blocked)
+    return any(n.isupper() for n in dist)
+
 def solve(edges: list[tuple[str, str]]) -> list[str]:
     graph = defaultdict(list)
     for u, v in edges:
@@ -39,9 +43,6 @@ def solve(edges: list[tuple[str, str]]) -> list[str]:
         if not gateways:
             break
 
-        min_dist = min(dist[g] for g in gateways)
-        target_gateway = min(g for g in gateways if dist[g] == min_dist)
-
         immediate = []
         for g in sorted(graph.keys()):
             if not g.isupper():
@@ -49,35 +50,42 @@ def solve(edges: list[tuple[str, str]]) -> list[str]:
             for nb in sorted(graph[g]):
                 if nb == virus and (g, nb) not in blocked:
                     immediate.append(f"{g}-{nb}")
-
-        if not immediate:
-            candidates = []
+        if immediate:
+            cut = min(immediate)
+            g, n = cut.split('-')
+            blocked.add((g, n))
+            blocked.add((n, g))
+            result.append(cut)
+        else:
+            possible = []
             for g in sorted(graph.keys()):
                 if not g.isupper():
                     continue
                 for nb in sorted(graph[g]):
-                    if (g, nb) not in blocked and not nb.isupper():
-                        candidates.append(f"{g}-{nb}")
-
-            if not candidates:
+                    if nb.isupper():
+                        continue
+                    if (g, nb) in blocked or (nb, g) in blocked:
+                        continue
+                    tmp_blocked = set(blocked)
+                    tmp_blocked.add((g, nb))
+                    tmp_blocked.add((nb, g))
+                    if is_reachable(graph, virus, tmp_blocked):
+                        possible.append(f"{g}-{nb}")
+            if not possible:
                 break
-
-            to_block = min(candidates)
-        else:
-            to_block = min(immediate)
-
-        g, n = to_block.split('-')
-        blocked.add((g, n))
-        blocked.add((n, g))
-        result.append(to_block)
+            cut = min(possible)
+            g, n = cut.split('-')
+            blocked.add((g, n))
+            blocked.add((n, g))
+            result.append(cut)
 
         dist2, prev2 = bfs(graph, virus, blocked)
-        gateways2 = [node for node in dist2 if node.isupper()]
+        gateways2 = [n for n in dist2 if n.isupper()]
         if not gateways2:
             break
-        min_dist2 = min(dist2[g] for g in gateways2)
-        target2 = min(g for g in gateways2 if dist2[g] == min_dist2)
-        path = find_path(prev2, virus, target2)
+        min_dist = min(dist2[g] for g in gateways2)
+        target = min(g for g in gateways2 if dist2[g] == min_dist)
+        path = find_path(prev2, virus, target)
         if len(path) >= 2:
             virus = path[1]
         else:
@@ -92,8 +100,8 @@ def main():
         if line:
             a, _, b = line.partition('-')
             edges.append((a, b))
-    for r in solve(edges):
-        print(r)
+    for e in solve(edges):
+        print(e)
 
 if __name__ == "__main__":
     main()
