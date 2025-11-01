@@ -1,84 +1,76 @@
 import sys
 from collections import deque, defaultdict
 
-def bfs_single(graph, start, blocked_set):
-    dist = {}
+def bfs(graph, start, blocked):
+    dist = {start: 0}
+    prev = {}
     q = deque([start])
-    dist[start] = 0
     while q:
         u = q.popleft()
-        for v in graph[u]:
-            if v not in dist and (u, v) not in blocked_set:
+        for v in sorted(graph[u]):
+            if (u, v) in blocked or (v, u) in blocked:
+                continue
+            if v not in dist:
                 dist[v] = dist[u] + 1
+                prev[v] = u
                 q.append(v)
-    return dist
+    return dist, prev
+
+def find_path(prev, start, goal):
+    path = [goal]
+    while path[-1] != start:
+        path.append(prev[path[-1]])
+    path.reverse()
+    return path
 
 def solve(edges: list[tuple[str, str]]) -> list[str]:
     graph = defaultdict(list)
     for u, v in edges:
         graph[u].append(v)
         graph[v].append(u)
-    
-    virus_pos = 'a'
+
+    virus = "a"
     blocked = set()
     result = []
 
     while True:
-        blocked_set = set()
-        for g, n in blocked:
-            blocked_set.add((g, n))
-            blocked_set.add((n, g))
-        
-        dist_v = bfs_single(graph, virus_pos, blocked_set)
-        gateways = {node: d for node, d in dist_v.items() if node.isupper()}
+        dist, prev = bfs(graph, virus, blocked)
+        gateways = [node for node in dist if node.isupper()]
         if not gateways:
             break
-            
-        min_dist = min(gateways.values())
-        target_gateway = min(g for g, d in gateways.items() if d == min_dist)
-        
-        candidates = []
-        for neighbor in graph[target_gateway]:
-            if neighbor.isupper():
-                continue
-            if (target_gateway, neighbor) not in blocked:
-                candidates.append((target_gateway, neighbor))
-                
-        if not candidates:
-            break
-            
-        to_block = min(candidates)
-        result.append(f"{to_block[0]}-{to_block[1]}")
-        blocked.add(to_block)
-        
-        blocked_set = set()
-        for g, n in blocked:
-            blocked_set.add((g, n))
-            blocked_set.add((n, g))
-            
-        dist_v = bfs_single(graph, virus_pos, blocked_set)
-        gateways = {node: d for node, d in dist_v.items() if node.isupper()}
-        if not gateways:
-            break
-        min_dist = min(gateways.values())
-        target_gateway = min(g for g, d in gateways.items() if d == min_dist)
-        
-        dist_g = bfs_single(graph, target_gateway, blocked_set)
-        
-        next_candidates = []
-        for nb in sorted(graph[virus_pos]):
-            if (virus_pos, nb) in blocked_set:
-                continue
-            if (nb in dist_v and nb in dist_g and 
-            virus_pos in dist_g and dist_v[nb] == dist_v[virus_pos] + 1 and 
-            dist_g[nb] == dist_g[virus_pos] - 1):
-                    next_candidates.append(nb)
-                    
-        if next_candidates:
-            virus_pos = next_candidates[0]
+
+        min_dist = min(dist[g] for g in gateways)
+        target_gateway = min(g for g in gateways if dist[g] == min_dist)
+
+        for nb in sorted(graph[virus]):
+            if nb.isupper() and (virus, nb) not in blocked and (nb, virus) not in blocked:
+                result.append(f"{nb}-{virus}")
+                blocked.add((nb, virus))
+                blocked.add((virus, nb))
+                break
         else:
+            path = find_path(prev, virus, target_gateway)
+            if len(path) < 2:
+                break
+            next_virus = path[1]
+
+            cut_edges = []
+            for g in graph[next_virus]:
+                if g.isupper() and (g, next_virus) not in blocked:
+                    cut_edges.append(f"{g}-{next_virus}")
+            if cut_edges:
+                cut = min(cut_edges)
+                g, n = cut.split('-')
+                blocked.add((g, n))
+                blocked.add((n, g))
+                result.append(cut)
+
+            virus = next_virus
+
+        dist2, _ = bfs(graph, virus, blocked)
+        if not any(n.isupper() for n in dist2):
             break
-            
+
     return result
 
 def main():
@@ -89,9 +81,8 @@ def main():
             node1, sep, node2 = line.partition('-')
             if sep:
                 edges.append((node1, node2))
-                
-    result = solve(edges)
-    for edge in result:
-        print(edge)
+    for e in solve(edges):
+        print(e)
+
 if __name__ == "__main__":
     main()
