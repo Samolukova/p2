@@ -35,40 +35,52 @@ def solve(edges: list[tuple[str, str]]) -> list[str]:
 
     while True:
         dist, prev = bfs(graph, virus, blocked)
-        gateways = [node for node in dist if node.isupper()]
+        gateways = [n for n in dist if n.isupper()]
         if not gateways:
             break
 
         min_dist = min(dist[g] for g in gateways)
         target_gateway = min(g for g in gateways if dist[g] == min_dist)
 
-        for nb in sorted(graph[virus]):
-            if nb.isupper() and (virus, nb) not in blocked and (nb, virus) not in blocked:
-                result.append(f"{nb}-{virus}")
-                blocked.add((nb, virus))
-                blocked.add((virus, nb))
+        immediate = []
+        for g in sorted(graph.keys()):
+            if not g.isupper():
+                continue
+            for nb in sorted(graph[g]):
+                if nb == virus and (g, nb) not in blocked:
+                    immediate.append(f"{g}-{nb}")
+
+        if not immediate:
+            candidates = []
+            for g in sorted(graph.keys()):
+                if not g.isupper():
+                    continue
+                for nb in sorted(graph[g]):
+                    if (g, nb) not in blocked and not nb.isupper():
+                        candidates.append(f"{g}-{nb}")
+
+            if not candidates:
                 break
+
+            to_block = min(candidates)
         else:
-            path = find_path(prev, virus, target_gateway)
-            if len(path) < 2:
-                break
-            next_virus = path[1]
+            to_block = min(immediate)
 
-            cut_edges = []
-            for g in graph[next_virus]:
-                if g.isupper() and (g, next_virus) not in blocked:
-                    cut_edges.append(f"{g}-{next_virus}")
-            if cut_edges:
-                cut = min(cut_edges)
-                g, n = cut.split('-')
-                blocked.add((g, n))
-                blocked.add((n, g))
-                result.append(cut)
+        g, n = to_block.split('-')
+        blocked.add((g, n))
+        blocked.add((n, g))
+        result.append(to_block)
 
-            virus = next_virus
-
-        dist2, _ = bfs(graph, virus, blocked)
-        if not any(n.isupper() for n in dist2):
+        dist2, prev2 = bfs(graph, virus, blocked)
+        gateways2 = [node for node in dist2 if node.isupper()]
+        if not gateways2:
+            break
+        min_dist2 = min(dist2[g] for g in gateways2)
+        target2 = min(g for g in gateways2 if dist2[g] == min_dist2)
+        path = find_path(prev2, virus, target2)
+        if len(path) >= 2:
+            virus = path[1]
+        else:
             break
 
     return result
@@ -78,11 +90,10 @@ def main():
     for line in sys.stdin:
         line = line.strip()
         if line:
-            node1, sep, node2 = line.partition('-')
-            if sep:
-                edges.append((node1, node2))
-    for e in solve(edges):
-        print(e)
+            a, _, b = line.partition('-')
+            edges.append((a, b))
+    for r in solve(edges):
+        print(r)
 
 if __name__ == "__main__":
     main()
