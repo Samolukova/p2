@@ -69,8 +69,9 @@ def solve(edges: list[tuple[str, str]]) -> list[str]:
         for nb in sorted(graph[virus_pos]):
             if (virus_pos, nb) in blocked_set:
                 continue
-            if nb in dist_v and nb in dist_g:
-                if dist_v[nb] == dist_v[virus_pos] + 1 and dist_g[nb] == dist_g[virus_pos] - 1:
+            if (nb in dist_v and nb in dist_g and 
+            virus_pos in dist_g and dist_v[nb] == dist_v[virus_pos] + 1 and 
+            dist_g[nb] == dist_g[virus_pos] - 1):
                     next_candidates.append(nb)
                     
         if next_candidates:
@@ -92,6 +93,5 @@ def main():
     result = solve(edges)
     for edge in result:
         print(edge)
-
 if __name__ == "__main__":
     main()
